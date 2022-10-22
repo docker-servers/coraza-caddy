@@ -12,9 +12,9 @@
   # Load Coraza configuration
   coraza_waf {
     # Main configuration file
-		include /opt/coraza/config/coraza.conf
+    include /opt/coraza/config/coraza.conf
     # User defined configuration files
-		include /opt/coraza/config.d/*.conf
+    include /opt/coraza/config.d/*.conf
     # OWASP Core Rule Set (CRS) Setup
     include /opt/coraza/config/crs-setup.conf
     # OWASP Core Rule Set (CRS)
