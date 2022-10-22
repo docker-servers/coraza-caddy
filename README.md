@@ -8,6 +8,7 @@ Currently, the assumption is made that this acts as an intermediate proxy betwee
   - [Important Notes](#important-notes)
   - [Examples](#examples)
     - [Docker Swarm Stack](#docker-swarm-stack)
+  - [Build Arguments](#build-arguments)
 
 ## Important Notes
 
@@ -137,3 +138,14 @@ volumes:
   ## Certificate store for Traefik
   certificates:
 ```
+
+## Build Arguments
+
+Various arguments can be provided if building the container yourself. The available arguments are:
+
+| Variable        | Default                                                                                | Description                                                                                                                                                 |
+| --------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CADDY_TAG`     | `2.6.2`                                                                                | The Caddy Docker container tag to use as a base.                                                                                                            |
+| `CRS_TAG`       | `v4.0.0-rc1`                                                                           | The OWASP Core Rule Set release tag.                                                                                                                        |
+| `CORAZA_CONFIG` | `https://raw.githubusercontent.com/corazawaf/coraza/v2/master/coraza.conf-recommended` | The URL to download the default Coraza configuration file from.                                                                                             |
+| `LIBCAP`        | `true`                                                                                 | Install libcap and add the `cap_net_bind_service` capability to the Caddy binary. Required for the container to bind to low ports when not running as root. |
