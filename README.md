@@ -4,6 +4,11 @@ This repository contains a Docker container running [Caddy](https://caddyserver.
 
 Currently, the assumption is made that this acts as an intermediate proxy between the ingress and the service to protect. There is no SSL configuration, rather than should be handled at the ingress.
 
+- [Coraza WAF with Caddy](#coraza-waf-with-caddy)
+  - [Important Notes](#important-notes)
+  - [Examples](#examples)
+    - [Docker Swarm Stack](#docker-swarm-stack)
+
 ## Important Notes
 
 * The container is configured by default to run as a non-root user. The upstream Caddy containers run using root by default. To allow binding on ports <1024 `cap_net_bind_service` is added on the Caddy binary.
