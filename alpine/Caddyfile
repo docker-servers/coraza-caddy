@@ -11,14 +11,12 @@
 
   # Load Coraza configuration
   coraza_waf {
-		directives `
-			SecAction "id:1,pass,log"
-			SecRule REQUEST_URI "/test5" "id:2, deny, log, phase:1"
-		`
     # Main configuration file
 		include /opt/coraza/config/coraza.conf
     # User defined configuration files
 		include /opt/coraza/config.d/*.conf
+    # OWASP Core Rule Set (CRS) Setup
+    include /opt/coraza/config/crs-setup.conf
     # OWASP Core Rule Set (CRS)
     include /opt/coraza/rules/*.conf
     # User defined rule sets
