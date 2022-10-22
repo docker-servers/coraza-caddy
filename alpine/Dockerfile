@@ -6,7 +6,7 @@ FROM caddy:"${CADDY_TAG}-builder" as builder
 
 # Set OWASP ModSecurity core rule set release tag to check out
 # Available tags are on the GitHub releases page here: https://github.com/coreruleset/coreruleset/tags
-ARG CRS_TAG="v3.3.4"
+ARG CRS_TAG="v4.0.0-rc1"
 
 # Set default Coraza configuration file to download
 ARG CORAZA_CONFIG="https://raw.githubusercontent.com/corazawaf/coraza/v2/master/coraza.conf-recommended"
@@ -14,7 +14,7 @@ ARG CORAZA_CONFIG="https://raw.githubusercontent.com/corazawaf/coraza/v2/master/
 # Build Caddy with Coraza
 RUN xcaddy build --with github.com/corazawaf/coraza-caddy
 
-# Get OWASP ModSecurity Core Rule Set
+# Get OWASP ModSecurity Core Rule Set and main configuration file
 RUN set -eux; \
   # Get rule set archive
   wget -O "/var/tmp/crs-${CRS_TAG}.tar.gz" "https://github.com/coreruleset/coreruleset/archive/refs/tags/${CRS_TAG}.tar.gz"; \
@@ -62,11 +62,12 @@ RUN set -eux; \
     /opt/coraza/rules.d \
   ;
 
-# Copy out core rule set files from builder
-COPY --from=builder /var/tmp/owasp-crs/rules /opt/coraza/rules
-
 # Copy out Coraza configuration file from builder
 COPY --from=builder /var/tmp/coraza.conf /opt/coraza/config/coraza.conf
+
+# Copy out core rule set files from builder
+COPY --from=builder /var/tmp/owasp-crs/crs-setup.conf.example /opt/coraza/config/crs-setup.conf
+COPY --from=builder /var/tmp/owasp-crs/rules /opt/coraza/rules
 
 # Add user to run Caddy so it is not running as root
 # This should only be done if the Caddy user/group is not set to root
@@ -96,7 +97,7 @@ RUN set -eux; \
 # Switch user
 USER "${CADDY_USER}:${CADDY_GROUP}"
 
-# Add default configuration file replacing the standard one
+# Add default Caddy configuration file replacing the standard one to make the WAF live
 COPY Caddyfile /etc/caddy/Caddyfile
 
 # Set env variables for config/data directories
