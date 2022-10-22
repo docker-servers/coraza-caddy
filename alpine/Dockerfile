@@ -49,6 +49,11 @@ ARG CADDY_CONFIG_DIR=/config
 # Set data directory
 ARG CADDY_DATA_DIR=/data
 
+# Set Coraza SecRuleEngine mode
+ENV CORAZA_MODE="On"
+# To disable the rule engine, use the following instead:
+# ENV CORAZA_MODE="DetectionOnly"
+
 # Copy newly built Caddy binary from builder
 COPY --from=builder /usr/bin/caddy /usr/bin/caddy
 
