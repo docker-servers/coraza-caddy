@@ -44,15 +44,18 @@ RUN --mount=type=cache,target=/var/tmp \
   mkdir -p \
     # Main configuration directory
     /opt/coraza/config \
-    # User configuration directories
+    # Additional rules directory (not used yet)
+    /opt/coraza/rules \
+    # User configuration directory
     /opt/coraza/config.d \
+    # User rule directory
     /opt/coraza/rules.d \
   ; \
   # Copy rule set into rules dir
-  cp -r /var/tmp/owasp-crs/rules /opt/coraza/rules; \
+  cp -r /var/tmp/owasp-crs/rules /opt/coraza/owasp-crs; \
   # Copy CRS setup file into config dir
   cp /var/tmp/owasp-crs/crs-setup.conf.example /opt/coraza/config/crs-setup.conf; \
-  # Copy Coraza configuration file into config dir
+  # Copy main Coraza configuration file into config dir
   cp /var/tmp/coraza.conf /opt/coraza/config/coraza.conf
 
 # Use official Go image to build confd

@@ -18,6 +18,8 @@
     # OWASP Core Rule Set (CRS) Setup
     include /opt/coraza/config/crs-setup.conf
     # OWASP Core Rule Set (CRS)
+    include /opt/coraza/owasp-crs/*.conf
+    # Other baked in rule sets
     include /opt/coraza/rules/*.conf
     # User defined rule sets
     include /opt/coraza/rules.d/*.conf
