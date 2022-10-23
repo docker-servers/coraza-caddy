@@ -21,7 +21,7 @@ RUN --mount=type=cache,target=/var/tmp \
   # Only retrieve and extract rule set if not existing due to cache layer
   if [ ! -d "/var/tmp/owasp-crs" ]; then \
     # Get rule set archive
-    wget -O "/var/tmp/crs-${CRS_TAG}.tar.gz" "https://github.com/coreruleset/coreruleset/archive/refs/tags/${CRS_TAG}.tar.gz"; \
+    wget --progress=dot:giga -O "/var/tmp/crs-${CRS_TAG}.tar.gz" "https://github.com/coreruleset/coreruleset/archive/refs/tags/${CRS_TAG}.tar.gz"; \
     # Extract rule set
     mkdir /var/tmp/owasp-crs; \
     tar x -z \
@@ -33,7 +33,7 @@ RUN --mount=type=cache,target=/var/tmp \
   # Only retrieve configuration file if not existing due to cache layer
   if [ ! -f "/var/tmp/coraza.conf" ]; then \
     # Get Coraza configuration file
-    wget -O /var/tmp/coraza.conf "$CORAZA_CONFIG"; \
+    wget --progress=dot:giga -O /var/tmp/coraza.conf "$CORAZA_CONFIG"; \
   fi; \
   # Create directory structure for Coraza
   mkdir -p \
@@ -61,13 +61,13 @@ RUN --mount=type=cache,target=/go/src \
     # Make build path
     mkdir -p "${GOPATH}/src/github.com/kelseyhightower"; \
     # Clone GitHub repo
-    git clone https://github.com/kelseyhightower/confd.git $GOPATH/src/github.com/kelseyhightower/confd ; \
+    git clone "https://github.com/kelseyhightower/confd.git" "${GOPATH}/src/github.com/kelseyhightower/confd"; \
   fi; \
   # Build binary
-  cd $GOPATH/src/github.com/kelseyhightower/confd; \
+  cd "${GOPATH}/src/github.com/kelseyhightower/confd"; \
   make; \
   # Copy to /go/bin directory due to cache mount
-  cp $GOPATH/src/github.com/kelseyhightower/confd/bin/confd /go/bin
+  cp "${GOPATH}/src/github.com/kelseyhightower/confd/bin/confd" /go/bin
 
 # Switch to official Caddy container
 FROM caddy:"$CADDY_TAG"
