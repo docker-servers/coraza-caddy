@@ -2,7 +2,7 @@
 ARG CADDY_TAG="2.6.2"
 
 # Use official Caddy builder image
-FROM caddy:"${CADDY_TAG}-builder" as builder
+FROM caddy:"${CADDY_TAG}-builder" as builder-caddy
 
 # Set OWASP ModSecurity core rule set release tag to check out
 # Available tags are on the GitHub releases page here: https://github.com/coreruleset/coreruleset/tags
@@ -12,21 +12,62 @@ ARG CRS_TAG="v4.0.0-rc1"
 ARG CORAZA_CONFIG="https://raw.githubusercontent.com/corazawaf/coraza/v2/master/coraza.conf-recommended"
 
 # Build Caddy with Coraza
-RUN xcaddy build --with github.com/corazawaf/coraza-caddy
+RUN --mount=type=cache,target=/go \
+  xcaddy build --with github.com/corazawaf/coraza-caddy
 
 # Get OWASP ModSecurity Core Rule Set and main configuration file
-RUN set -eux; \
-  # Get rule set archive
-  wget -O "/var/tmp/crs-${CRS_TAG}.tar.gz" "https://github.com/coreruleset/coreruleset/archive/refs/tags/${CRS_TAG}.tar.gz"; \
-  # Extract rule set
-  mkdir /var/tmp/owasp-crs; \
-  tar x -z \
-    --strip-components=1 \
-    -f "/var/tmp/crs-${CRS_TAG}.tar.gz" \
-    -C /var/tmp/owasp-crs \
+RUN --mount=type=cache,target=/var/tmp \
+  set -eux; \
+  # Only retrieve and extract rule set if not existing due to cache layer
+  if [ ! -d "/var/tmp/owasp-crs" ]; then \
+    # Get rule set archive
+    wget -O "/var/tmp/crs-${CRS_TAG}.tar.gz" "https://github.com/coreruleset/coreruleset/archive/refs/tags/${CRS_TAG}.tar.gz"; \
+    # Extract rule set
+    mkdir /var/tmp/owasp-crs; \
+    tar x -z \
+      --strip-components=1 \
+      -f "/var/tmp/crs-${CRS_TAG}.tar.gz" \
+      -C /var/tmp/owasp-crs \
+    ; \
+  fi; \
+  # Only retrieve configuration file if not existing due to cache layer
+  if [ ! -f "/var/tmp/coraza.conf" ]; then \
+    # Get Coraza configuration file
+    wget -O /var/tmp/coraza.conf "$CORAZA_CONFIG"; \
+  fi; \
+  # Create directory structure for Coraza
+  mkdir -p \
+    # Main configuration directory
+    /opt/coraza/config \
+    # User configuration directories
+    /opt/coraza/config.d \
+    /opt/coraza/rules.d \
   ; \
-  # Get Coraza configuration file
-  wget -O /var/tmp/coraza.conf "$CORAZA_CONFIG"
+  # Copy rule set into rules dir
+  cp -r /var/tmp/owasp-crs/rules /opt/coraza/rules; \
+  # Copy CRS setup file into config dir
+  cp /var/tmp/owasp-crs/crs-setup.conf.example /opt/coraza/config/crs-setup.conf; \
+  # Copy Coraza configuration file into config dir
+  cp /var/tmp/coraza.conf /opt/coraza/config/coraza.conf
+
+# Use official Go image to build confd
+FROM golang:latest AS builder-confd
+
+# Build confd
+RUN --mount=type=cache,target=/go/src \
+  set -eux; \
+  # Only clone repository if not already existing due to cache layer
+  if [ ! -d "${GOPATH}/src/github.com/kelseyhightower" ]; then \
+    # Make build path
+    mkdir -p "${GOPATH}/src/github.com/kelseyhightower"; \
+    # Clone GitHub repo
+    git clone https://github.com/kelseyhightower/confd.git $GOPATH/src/github.com/kelseyhightower/confd ; \
+  fi; \
+  # Build binary
+  cd $GOPATH/src/github.com/kelseyhightower/confd; \
+  make; \
+  # Copy to /go/bin directory due to cache mount
+  cp $GOPATH/src/github.com/kelseyhightower/confd/bin/confd /go/bin
 
 # Switch to official Caddy container
 FROM caddy:"$CADDY_TAG"
@@ -49,25 +90,14 @@ ARG CADDY_CONFIG_DIR=/config
 # Set data directory
 ARG CADDY_DATA_DIR=/data
 
-# Copy newly built Caddy binary from builder
-COPY --from=builder /usr/bin/caddy /usr/bin/caddy
+# Copy newly built Caddy binary from builder-caddy
+COPY --from=builder-caddy /usr/bin/caddy /usr/bin/caddy
 
-# Create directory to store Coraza configuration, rule sets and temporary files
-RUN set -eux; \
-  mkdir -p \
-    # Main configuration directory
-    /opt/coraza/config \
-    # User configuration directories
-    /opt/coraza/config.d \
-    /opt/coraza/rules.d \
-  ;
+# Copy out Coraza configuration files and rules from builder-caddy
+COPY --from=builder-caddy /opt/coraza /opt/coraza
 
-# Copy out Coraza configuration file from builder
-COPY --from=builder /var/tmp/coraza.conf /opt/coraza/config/coraza.conf
-
-# Copy out core rule set files from builder
-COPY --from=builder /var/tmp/owasp-crs/crs-setup.conf.example /opt/coraza/config/crs-setup.conf
-COPY --from=builder /var/tmp/owasp-crs/rules /opt/coraza/rules
+# Copy our confd from build-confd
+COPY --from=builder-confd /go/bin/confd /usr/local/bin/confd
 
 # Add user to run Caddy so it is not running as root
 # This should only be done if the Caddy user/group is not set to root
