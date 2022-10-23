@@ -1,6 +1,9 @@
 # Set Caddy release tag
 ARG CADDY_TAG="2.6.2"
 
+# Set Go release tag for building confd
+ARG GO_TAG="bullseye"
+
 # Use official Caddy builder image
 FROM caddy:"${CADDY_TAG}-builder" as builder-caddy
 
@@ -19,7 +22,8 @@ RUN --mount=type=cache,target=/go \
 RUN --mount=type=cache,target=/var/tmp \
   set -eux; \
   # Only retrieve and extract rule set if not existing due to cache layer
-  if [ ! -d "/var/tmp/owasp-crs" ]; then \
+  if [ ! -d "/var/tmp/owasp-crs" ]; \
+  then \
     # Get rule set archive
     wget --progress=dot:giga -O "/var/tmp/crs-${CRS_TAG}.tar.gz" "https://github.com/coreruleset/coreruleset/archive/refs/tags/${CRS_TAG}.tar.gz"; \
     # Extract rule set
@@ -31,7 +35,8 @@ RUN --mount=type=cache,target=/var/tmp \
     ; \
   fi; \
   # Only retrieve configuration file if not existing due to cache layer
-  if [ ! -f "/var/tmp/coraza.conf" ]; then \
+  if [ ! -f "/var/tmp/coraza.conf" ]; \
+  then \
     # Get Coraza configuration file
     wget --progress=dot:giga -O /var/tmp/coraza.conf "$CORAZA_CONFIG"; \
   fi; \
@@ -51,13 +56,15 @@ RUN --mount=type=cache,target=/var/tmp \
   cp /var/tmp/coraza.conf /opt/coraza/config/coraza.conf
 
 # Use official Go image to build confd
-FROM golang:latest AS builder-confd
+FROM golang:"${GO_TAG}" AS builder-confd
 
 # Build confd
+# hadolint ignore=DL3003
 RUN --mount=type=cache,target=/go/src \
   set -eux; \
   # Only clone repository if not already existing due to cache layer
-  if [ ! -d "${GOPATH}/src/github.com/kelseyhightower" ]; then \
+  if [ ! -d "${GOPATH}/src/github.com/kelseyhightower" ]; \
+  then \
     # Make build path
     mkdir -p "${GOPATH}/src/github.com/kelseyhightower"; \
     # Clone GitHub repo
@@ -101,9 +108,11 @@ COPY --from=builder-confd /go/bin/confd /usr/local/bin/confd
 
 # Add user to run Caddy so it is not running as root
 # This should only be done if the Caddy user/group is not set to root
+# hadolint ignore=DL3018,SC1075
 RUN set -eux; \
   # Test if Caddy user is root; if so these steps are not required
-  if [ "$CADDY_USER" = "root" ]; then \
+  if [ "$CADDY_USER" = "root" ]; \
+  then \
     echo "Skipping Caddy user/group configuration; container will run Caddy as root"; \
   else \
     # Test if libcap needs to be installed
@@ -112,6 +121,8 @@ RUN set -eux; \
       apk add --no-cache libcap; \
       # Set capability on Caddy binary
       setcap cap_net_bind_service=ep /usr/bin/caddy; \
+      # Remove libcap
+      apk del libcap; \
     fi; \
     # Add Caddy group
     addgroup -g "$CADDY_GID" -S "$CADDY_GROUP"; \
