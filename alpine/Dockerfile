@@ -25,7 +25,7 @@ RUN --mount=type=cache,target=/var/tmp \
   if [ ! -d "/var/tmp/owasp-crs" ]; \
   then \
     # Get rule set archive
-    wget --progress=dot:giga -O "/var/tmp/crs-${CRS_TAG}.tar.gz" "https://github.com/coreruleset/coreruleset/archive/refs/tags/${CRS_TAG}.tar.gz"; \
+    wget -q -O "/var/tmp/crs-${CRS_TAG}.tar.gz" "https://github.com/coreruleset/coreruleset/archive/refs/tags/${CRS_TAG}.tar.gz"; \
     # Extract rule set
     mkdir /var/tmp/owasp-crs; \
     tar x -z \
@@ -38,7 +38,7 @@ RUN --mount=type=cache,target=/var/tmp \
   if [ ! -f "/var/tmp/coraza.conf" ]; \
   then \
     # Get Coraza configuration file
-    wget --progress=dot:giga -O /var/tmp/coraza.conf "$CORAZA_CONFIG"; \
+    wget -q -O /var/tmp/coraza.conf "$CORAZA_CONFIG"; \
   fi; \
   # Create directory structure for Coraza
   mkdir -p \
