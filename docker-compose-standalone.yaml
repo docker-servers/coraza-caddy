@@ -18,7 +18,7 @@ services:
 
   ## Coraza WAF running on Caddy
   caddy:
-    image: ghcr.io/docker-servers/coraza-caddy/alpine:latest
+    image: gbe0/coraza:latest
     depends_on:
       - whoami
     networks:
