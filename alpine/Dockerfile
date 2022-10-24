@@ -1,25 +1,22 @@
 # Set Caddy release tag
 ARG CADDY_TAG="2.6.2"
 
-# Set Go release tag for building confd
-ARG GO_TAG="bullseye"
-
 # Use official Caddy builder image
 FROM caddy:"${CADDY_TAG}-builder" as builder-caddy
+
+# Build Caddy with Coraza
+RUN --mount=type=cache,target=/go,id=caddy \
+  xcaddy build --with github.com/corazawaf/coraza-caddy
+
+# Use official caddy builder image to get Core Rule Set
+FROM caddy:"${CADDY_TAG}-builder" as builder-crs
 
 # Set OWASP ModSecurity core rule set release tag to check out
 # Available tags are on the GitHub releases page here: https://github.com/coreruleset/coreruleset/tags
 ARG CRS_TAG="v4.0.0-rc1"
 
-# Set default Coraza configuration file to download
-ARG CORAZA_CONFIG="https://raw.githubusercontent.com/corazawaf/coraza/v2/master/coraza.conf-recommended"
-
-# Build Caddy with Coraza
-RUN --mount=type=cache,target=/go \
-  xcaddy build --with github.com/corazawaf/coraza-caddy
-
 # Get OWASP ModSecurity Core Rule Set and main configuration file
-RUN --mount=type=cache,target=/var/tmp \
+RUN --mount=type=cache,target=/var/tmp,id=crs \
   set -eux; \
   # Only retrieve and extract rule set if not existing due to cache layer
   if [ ! -d "/var/tmp/owasp-crs" ]; \
@@ -33,12 +30,6 @@ RUN --mount=type=cache,target=/var/tmp \
       -f "/var/tmp/crs-${CRS_TAG}.tar.gz" \
       -C /var/tmp/owasp-crs \
     ; \
-  fi; \
-  # Only retrieve configuration file if not existing due to cache layer
-  if [ ! -f "/var/tmp/coraza.conf" ]; \
-  then \
-    # Get Coraza configuration file
-    wget -q -O /var/tmp/coraza.conf "$CORAZA_CONFIG"; \
   fi; \
   # Create directory structure for Coraza
   mkdir -p \
@@ -54,20 +45,20 @@ RUN --mount=type=cache,target=/var/tmp \
   # Copy rule set into rules dir
   cp -r /var/tmp/owasp-crs/rules /opt/coraza/owasp-crs; \
   # Copy CRS setup file into config dir
-  cp /var/tmp/owasp-crs/crs-setup.conf.example /opt/coraza/config/crs-setup.conf; \
-  # Copy main Coraza configuration file into config dir
-  cp /var/tmp/coraza.conf /opt/coraza/config/coraza.conf
+  cp /var/tmp/owasp-crs/crs-setup.conf.example /opt/coraza/config/crs-setup.conf
 
-# Use official Go image to build confd
-FROM golang:"${GO_TAG}" AS builder-confd
+# Use Caddy image to build confd
+FROM caddy:"${CADDY_TAG}-builder" as builder-confd
 
 # Build confd
 # hadolint ignore=DL3003
-RUN --mount=type=cache,target=/go/src \
+RUN --mount=type=cache,target=/go,id=confd \
   set -eux; \
   # Only clone repository if not already existing due to cache layer
   if [ ! -d "${GOPATH}/src/github.com/kelseyhightower" ]; \
   then \
+    # Get git package
+    apk add --no-cache git; \
     # Make build path
     mkdir -p "${GOPATH}/src/github.com/kelseyhightower"; \
     # Clone GitHub repo
@@ -75,9 +66,9 @@ RUN --mount=type=cache,target=/go/src \
   fi; \
   # Build binary
   cd "${GOPATH}/src/github.com/kelseyhightower/confd"; \
-  make; \
-  # Copy to /go/bin directory due to cache mount
-  cp "${GOPATH}/src/github.com/kelseyhightower/confd/bin/confd" /go/bin
+  go build -ldflags "-s -w" -o bin/confd; \
+  # Copy to /usr/local/bin/confd due to cache mount
+  cp "${GOPATH}/src/github.com/kelseyhightower/confd/bin/confd" /usr/local/bin/confd
 
 # Switch to official Caddy container
 FROM caddy:"$CADDY_TAG"
@@ -104,10 +95,16 @@ ARG CADDY_DATA_DIR=/data
 COPY --from=builder-caddy /usr/bin/caddy /usr/bin/caddy
 
 # Copy out Coraza configuration files and rules from builder-caddy
-COPY --from=builder-caddy /opt/coraza /opt/coraza
+COPY --from=builder-crs /opt/coraza /opt/coraza
 
 # Copy our confd from build-confd
-COPY --from=builder-confd /go/bin/confd /usr/local/bin/confd
+COPY --from=builder-confd /usr/local/bin/confd /usr/local/bin/confd
+
+# Add confd configuration files/templates
+COPY ./confd /etc/confd
+
+# Add entrypoint script
+COPY ./entrypoint.sh /entrypoint.sh
 
 # Add user to run Caddy so it is not running as root
 # This should only be done if the Caddy user/group is not set to root
@@ -118,15 +115,6 @@ RUN set -eux; \
   then \
     echo "Skipping Caddy user/group configuration; container will run Caddy as root"; \
   else \
-    # Test if libcap needs to be installed
-    if [ "$LIBCAP" = true ]; then \
-      # Install libcap
-      apk add --no-cache libcap; \
-      # Set capability on Caddy binary
-      setcap cap_net_bind_service=ep /usr/bin/caddy; \
-      # Remove libcap
-      apk del libcap; \
-    fi; \
     # Add Caddy group
     addgroup -g "$CADDY_GID" -S "$CADDY_GROUP"; \
     # Add Caddy user
@@ -135,17 +123,42 @@ RUN set -eux; \
     chown -R "$CADDY_UID":"$CADDY_GID" \
       "${CADDY_CONFIG_DIR}" \
       "${CADDY_DATA_DIR}" \
+      "/opt/coraza" \
     ; \
+  fi
+
+# Set capability on Caddy binary if required to allow binding on low ports for unprivileged user
+RUN set -eux; \
+  # Test if libcap needs to be installed
+  if [ "$LIBCAP" = true ]; \
+  then \
+    if [ "$CADDY_USER" != "root" ]; \
+    then \
+      # Install libcap
+      apk add --no-cache libcap; \
+      # Set capability on Caddy binary
+      setcap cap_net_bind_service=ep /usr/bin/caddy; \
+      # Remove libcap
+      apk del libcap; \
+    else \
+      echo "Skipping libcap installation and setting of cap_net_bind_service capability for Caddy; running as root"; \
+    fi; \
+  else \
+    echo "Skipping libcap installation and cap_net_bind_service capability for Caddy"; \
   fi
 
 # Switch user
 USER "${CADDY_USER}:${CADDY_GROUP}"
 
-# Add default Caddy configuration file replacing the standard one to make the WAF live
-COPY Caddyfile /etc/caddy/Caddyfile
-
 # Set env variables for config/data directories
 ENV XDG_CONFIG_HOME="$CADDY_CONFIG_DIR" XDG_DATA_HOME="$CADDY_DATA_DIR"
 
+# Set env variables for configuration defaults
+ENV SECRULEENGINE="DetectionOnly"
+
 # Create default volumes
-VOLUME /config /data
+VOLUME "$CADDY_CONFIG_DIR" "$CADDY_DATA_DIR"
+
+# Set entrypoint
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["caddy", "run", "--config", "/config/caddy/Caddyfile", "--adapter", "caddyfile"]

@@ -1,0 +1,33 @@
+# Default Caddyfile for use with Coraza WAF
+# See https://github.com/corazawaf/coraza-caddy for Caddy + Coraza specific information.
+
+# Ensure Coraza WAF runs first - this must be included for Coraza to be working
+{
+  order coraza_waf first
+}
+
+# Create the HTTP listener
+:80 {
+
+  # Load Coraza configuration
+  coraza_waf {
+    # Main configuration file
+    include /opt/coraza/config/coraza.conf
+    # User defined configuration files
+    include /opt/coraza/config.d/*.conf
+    # OWASP Core Rule Set (CRS) Setup
+    include /opt/coraza/config/crs-setup.conf
+    # OWASP Core Rule Set (CRS)
+    include /opt/coraza/owasp-crs/*.conf
+    # Other baked in rule sets or configurations
+    include /opt/coraza/rules/*.conf
+    # User defined rule sets
+    include /opt/coraza/rules.d/*.conf
+  }
+
+  # Proxy traffic to the relevant container(s)
+  reverse_proxy {env.REVERSE_PROXY} {
+    trusted_proxies private_ranges
+  }
+
+}
