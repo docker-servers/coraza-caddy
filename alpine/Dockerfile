@@ -84,15 +84,6 @@ COPY --from=builder-caddy /usr/bin/caddy /usr/bin/caddy
 # Copy out Coraza configuration files and rules from builder-caddy
 COPY --from=builder-crs /opt/coraza /opt/coraza
 
-# Copy our confd from build-confd
-COPY --from=builder-esh /usr/local/bin/esh /usr/local/bin/esh
-
-# Add configuration templates
-COPY ./templates /templates
-
-# Add entrypoint script
-COPY ./entrypoint.sh /entrypoint.sh
-
 # Add user to run Caddy so it is not running as root
 # This should only be done if the Caddy user/group is not set to root
 # hadolint ignore=DL3018,SC1075
@@ -134,6 +125,15 @@ RUN set -eux; \
   else \
     echo "Skipping libcap installation and cap_net_bind_service capability for Caddy"; \
   fi
+
+# Copy our confd from build-confd
+COPY --from=builder-esh /usr/local/bin/esh /usr/local/bin/esh
+
+# Add configuration templates
+COPY ./templates /templates
+
+# Add entrypoint script
+COPY ./entrypoint.sh /entrypoint.sh
 
 # Switch user
 USER "${CADDY_USER}:${CADDY_GROUP}"
