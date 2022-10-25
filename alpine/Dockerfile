@@ -153,12 +153,9 @@ USER "${CADDY_USER}:${CADDY_GROUP}"
 # Set env variables for config/data directories
 ENV XDG_CONFIG_HOME="$CADDY_CONFIG_DIR" XDG_DATA_HOME="$CADDY_DATA_DIR"
 
-# Set env variables for configuration defaults
-ENV SECRULEENGINE="DetectionOnly"
-
 # Create default volumes
 VOLUME "$CADDY_CONFIG_DIR" "$CADDY_DATA_DIR"
 
 # Set entrypoint
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["caddy", "run", "--config", "/config/caddy/Caddyfile", "--adapter", "caddyfile"]
+CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
