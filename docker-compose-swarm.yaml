@@ -25,7 +25,8 @@ services:
       - whoami
       - caddy
     environment:
-      - REVERSE_PROXY=whoami:80
+      - CADDY_REVERSE_PROXY=whoami:80
+      - CORAZA_SECRULEENGINE=On
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=caddy"

@@ -48,7 +48,7 @@
   }
 
   # Proxy traffic to the relevant container(s)
-  reverse_proxy <%= $REVERSE_PROXY %> {
+  reverse_proxy <%= $CADDY_REVERSE_PROXY %> {
     trusted_proxies private_ranges
   }
 

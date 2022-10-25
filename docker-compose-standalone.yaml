@@ -27,7 +27,8 @@ services:
       - "80:80"
       - "443:443"
     environment:
-      - REVERSE_PROXY=whoami:80
+      - CADDY_REVERSE_PROXY=whoami:80
+      - CORAZA_SECRULEENGINE=On
 
 ## Networks used by the above services
 networks:
