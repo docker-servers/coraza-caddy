@@ -77,7 +77,6 @@ Various arguments can be provided if building the container yourself. The availa
 | Variable           | Default      | Description                                                                                                                                                  |
 | ------------------ | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `CADDY_TAG`        | `2.6.2`      | The Caddy Docker container tag to use as a base.                                                                                                             |
-| `GO_TAG`           | `alpine`     | The Golang release tag to use for building confd.                                                                                                            |
 | `CRS_TAG`          | `v4.0.0-rc1` | The OWASP Core Rule Set release tag.                                                                                                                         |
 | `LIBCAP`           | `true`       | Install libcap and add the `cap_net_bind_service` capability to the Caddy binary. Required for the container to bind to low ports when not running as root.  |
 | `CADDY_USER`       | `caddy`      | The user name that will run Caddy. Can be set to `root` to run Caddy as root rather than a low privleged user.                                               |
