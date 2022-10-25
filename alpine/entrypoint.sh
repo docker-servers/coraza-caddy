@@ -6,7 +6,7 @@ set -e
 echo "Generating configuration files"
 
 # Generate configuration files
-confd -onetime -backend env -log-level warning -config-file /etc/confd/conf.d/Caddyfile.toml
+confd -onetime -backend env -log-level warning
 
 # Launch Caddy
 echo "Launching $*"
