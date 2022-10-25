@@ -4,8 +4,11 @@
 # only to start with, because that minimises the chances of post-installation
 # disruption.
 #
-SecRuleEngine {{getenv "CORAZA_SECRULEENGINE" "DetectionOnly" }}
-
+<% if [ ! -z ${CORAZA_SECRULEENGINE+x} ]; then -%>
+SecRuleEngine <%= $CORAZA_SECRULEENGINE %>
+<% else -%>
+SecRuleEngine DetectionOnly
+<% fi -%>
 
 # -- Request body handling ---------------------------------------------------
 
@@ -13,7 +16,11 @@ SecRuleEngine {{getenv "CORAZA_SECRULEENGINE" "DetectionOnly" }}
 # won't be able to see any POST parameters, which opens a large security
 # hole for attackers to exploit.
 #
-SecRequestBodyAccess {{getenv "CORAZA_SECREQUESTBODYACCESS" "On" }}
+<% if [ ! -z ${CORAZA_SECREQUESTBODYACCESS+x} ]; then -%>
+SecRequestBodyAccess <%= $CORAZA_SECREQUESTBODYACCESS %>
+<% else -%>
+SecRequestBodyAccess On
+<% fi -%>
 
 # Enable XML request body parser.
 # Initiate XML Processor in case of xml content-type

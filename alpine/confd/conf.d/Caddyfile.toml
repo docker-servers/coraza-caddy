@@ -1,3 +1,0 @@
-[template]
-src = "Caddyfile.tmpl"
-dest = "/etc/caddy/Caddyfile"

@@ -41,34 +41,21 @@ RUN --mount=type=cache,target=/var/tmp,id=crs \
     /opt/coraza/config.d \
     # User rule directory
     /opt/coraza/rules.d \
+    # Rule/configuration overrides
+    /opt/coraza/overrides \
   ; \
   # Copy rule set into rules dir
   cp -r /var/tmp/owasp-crs/rules /opt/coraza/owasp-crs; \
   # Copy CRS setup file into config dir
   cp /var/tmp/owasp-crs/crs-setup.conf.example /opt/coraza/config/crs-setup.conf
 
-# Use Caddy image to build confd
-FROM caddy:"${CADDY_TAG}-builder" as builder-confd
+# Use Caddy image to retrieve esh
+FROM caddy:"${CADDY_TAG}-builder" as builder-esh
 
-# Build confd
-# hadolint ignore=DL3003
-RUN --mount=type=cache,target=/go,id=confd \
-  set -eux; \
-  # Only clone repository if not already existing due to cache layer
-  if [ ! -d "${GOPATH}/src/github.com/kelseyhightower" ]; \
-  then \
-    # Get git package
-    apk add --no-cache git; \
-    # Make build path
-    mkdir -p "${GOPATH}/src/github.com/kelseyhightower"; \
-    # Clone GitHub repo
-    git clone "https://github.com/kelseyhightower/confd.git" "${GOPATH}/src/github.com/kelseyhightower/confd"; \
-  fi; \
-  # Build binary
-  cd "${GOPATH}/src/github.com/kelseyhightower/confd"; \
-  go build -ldflags "-s -w" -o bin/confd; \
-  # Copy to /usr/local/bin/confd due to cache mount
-  cp "${GOPATH}/src/github.com/kelseyhightower/confd/bin/confd" /usr/local/bin/confd
+# Get esh and set permissions
+RUN set -eux; \
+  wget -q -O /usr/local/bin/esh "https://raw.githubusercontent.com/jirutka/esh/master/esh"; \
+  chmod +x /usr/local/bin/esh
 
 # Switch to official Caddy container
 FROM caddy:"$CADDY_TAG"
@@ -98,10 +85,10 @@ COPY --from=builder-caddy /usr/bin/caddy /usr/bin/caddy
 COPY --from=builder-crs /opt/coraza /opt/coraza
 
 # Copy our confd from build-confd
-COPY --from=builder-confd /usr/local/bin/confd /usr/local/bin/confd
+COPY --from=builder-esh /usr/local/bin/esh /usr/local/bin/esh
 
-# Add confd configuration files/templates
-COPY ./confd /etc/confd
+# Add configuration templates
+COPY ./templates /templates
 
 # Add entrypoint script
 COPY ./entrypoint.sh /entrypoint.sh
@@ -124,6 +111,7 @@ RUN set -eux; \
       "${CADDY_CONFIG_DIR}" \
       "${CADDY_DATA_DIR}" \
       "/opt/coraza" \
+      "/etc/caddy" \
     ; \
   fi
 

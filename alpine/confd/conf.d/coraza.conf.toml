@@ -1,3 +1,0 @@
-[template]
-src = "coraza.conf.tmpl"
-dest = "/opt/coraza/config/coraza.conf"

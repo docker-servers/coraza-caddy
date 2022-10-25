@@ -1,3 +1,0 @@
-# Disable the following rule ID's
-{{ $removals := split (getenv "CORAZA_REMOVERULEIDS") "," }}{{range $removals}}
-SecRuleRemoveById {{.}}{{end}}

@@ -1,3 +1,0 @@
-[template]
-src = "crs_disable.conf.tmpl"
-dest = "/opt/coraza/rules/crs_disable.conf"
